@@ -1,65 +1,97 @@
-import Image from "next/image";
-
-export default function Home() {
+'use client'
+import { useCallback, useState } from 'react'
+import { useDropzone }           from 'react-dropzone'
+import { useIngest }             from '@/hooks/useIngest'
+ 
+export default function LandingPage() {
+  const [jdText,  setJdText]  = useState('')
+  const [pdfFile, setPdfFile] = useState<File | null>(null)
+  const { mutate, isPending, error } = useIngest()
+ 
+  const onDrop = useCallback((accepted: File[]) => {
+    if (accepted[0]) setPdfFile(accepted[0])
+  }, [])
+ 
+  const { getRootProps, getInputProps, isDragActive } = useDropzone({
+    onDrop,
+    accept:   { 'application/pdf': ['.pdf'] },
+    maxFiles: 1,
+  })
+ 
+  const handleSubmit = () => {
+    if (!pdfFile || !jdText.trim()) return
+ 
+    const form = new FormData()
+    form.append('resume', pdfFile)
+    form.append('jd',     jdText)
+    mutate(form)
+  }
+ 
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
+    <main className="min-h-screen bg-slate-50 flex items-center justify-center p-8">
+      <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-8 w-full max-w-2xl space-y-6">
+ 
+        <div>
+          <h1 className="text-2xl font-bold text-slate-800">Job Application Assistant</h1>
+          <p className="text-slate-500 text-sm mt-1">
+            Upload your resume and paste the job description to get started.
           </p>
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
+ 
+        {/* PDF Dropzone */}
+        <div>
+          <label className="text-sm font-medium text-slate-700 block mb-2">
+            Resume (PDF)
+          </label>
+          <div
+            {...getRootProps()}
+            className={`border-2 border-dashed rounded-xl p-8 text-center cursor-pointer transition-colors
+              ${isDragActive
+                ? 'border-indigo-400 bg-indigo-50'
+                : 'border-slate-200 hover:border-indigo-300'}`}
           >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
+            <input {...getInputProps()} />
+            {pdfFile
+              ? <p className="text-indigo-600 font-medium">✓ {pdfFile.name}</p>
+              : <p className="text-slate-400">
+                  Drag and drop your PDF here, or click to browse
+                </p>
+            }
+          </div>
         </div>
-      </main>
-    </div>
-  );
+ 
+        {/* Job Description */}
+        <div>
+          <label className="text-sm font-medium text-slate-700 block mb-2">
+            Job Description
+          </label>
+          <textarea
+            value={jdText}
+            onChange={e => setJdText(e.target.value)}
+            rows={6}
+            className="w-full border border-slate-200 rounded-xl p-3 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-indigo-300"
+            placeholder="Paste the job description here..."
+          />
+          <p className="text-xs text-slate-400 mt-1 text-right">{jdText.length} chars</p>
+        </div>
+ 
+        {error && (
+          <p className="text-sm text-red-500 bg-red-50 p-3 rounded-lg">
+            {(error as Error).message}
+          </p>
+        )}
+ 
+        <button
+          onClick={handleSubmit}
+          disabled={isPending || !pdfFile || !jdText.trim()}
+          className="w-full bg-indigo-600 text-white py-3 rounded-xl font-medium
+                     hover:bg-indigo-700 disabled:opacity-40 disabled:cursor-not-allowed
+                     transition-colors"
+        >
+          {isPending ? 'Processing...' : 'Analyse My Application →'}
+        </button>
+ 
+      </div>
+    </main>
+  )
 }
