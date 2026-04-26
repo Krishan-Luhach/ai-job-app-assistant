@@ -1,5 +1,5 @@
 'use client'
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useCoverLetter }      from '@/hooks/useCoverLetter'
 import { useAppStore }         from '@/store/appStore'
 import { useRouter }           from 'next/navigation'
@@ -9,21 +9,22 @@ export default function CoverLetterPage() {
   const { mutate, data, isPending, error }     = useCoverLetter()
   const [copied, setCopied]                    = useState(false)
   const router                                 = useRouter()
- 
-  // Auto-generate on page load
-  useEffect(() => {
-    if (sessionId) {
-      let lastCall = 0
-      const throttledMutate = () => {
-        const now = Date.now()
-        if (now - lastCall >= 1000) {
-          lastCall = now
-          mutate()
-        }
+
+  const throttledMutate = useMemo(() => {
+    let lastCall = 0
+    return () => {
+      const now = Date.now()
+      if (now - lastCall >= 1000) {
+        lastCall = now
+        mutate()
       }
-      throttledMutate()
     }
-  }, [sessionId, mutate])
+  }, [mutate])
+ 
+  // Auto-generate on page load (throttled to once per second)
+  useEffect(() => {
+    if (sessionId) throttledMutate()
+  }, [sessionId, throttledMutate])
  
   useEffect(() => {
     if (!sessionId) router.replace('/')
@@ -56,7 +57,7 @@ export default function CoverLetterPage() {
         <div className="flex items-center justify-between">
           <h1 className="text-2xl font-bold text-slate-800">Cover Letter</h1>
             <div className="flex gap-2">
-            <button onClick={() => mutate()}
+            <button onClick={throttledMutate}
               disabled={isPending}
               className="px-4 py-2 text-sm border border-slate-200 rounded-lg
                    hover:bg-slate-50 disabled:opacity-40 cursor-pointer">

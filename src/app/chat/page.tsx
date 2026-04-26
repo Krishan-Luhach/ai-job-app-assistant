@@ -77,10 +77,8 @@ export default function ChatPage() {
 
         // stream:true handles multi-byte characters split across chunks
         buffer += decoder.decode(value, { stream: true })
-        console.log("Buffer:: ", buffer);
         // Split on SSE double-newline delimiter
         const events = buffer.split('\n\n')
-        console.log("Events:: ", events);
         // Last item may be incomplete — keep in buffer for next iteration
         buffer = events.pop() ?? ''
 
