@@ -35,7 +35,7 @@ export async function POST(req: Request) {
                         sessionId,
                     })) {
                         /* "data: " prefix and \n\n ending are SSE format - browser EventSource API recognize this format */
-                        controller.enqueue(encoder.encode(`data:${chunk}\n\n`)); 
+                        controller.enqueue(encoder.encode(`data:${JSON.stringify(chunk)}\n\n`)); 
                     }
                 } catch (err) {
                     controller.enqueue(

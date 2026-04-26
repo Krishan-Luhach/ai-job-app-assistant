@@ -3,7 +3,6 @@ import { loadAndCleanPdf } from "./pdfLoader";
 
 export async function splitResume(pdfPath:string){
     const docs = await loadAndCleanPdf(pdfPath);
-    console.log("Parsed Docs:: ",docs);
     const splitter = new RecursiveCharacterTextSplitter({
         chunkOverlap:100,
         chunkSize:600,

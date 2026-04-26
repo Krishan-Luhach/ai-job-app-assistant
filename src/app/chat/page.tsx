@@ -1,9 +1,9 @@
 'use client'
 import React, { useState, useRef, useEffect, KeyboardEvent } from 'react'
-import { useAppStore }                                 from '@/store/appStore'
-import { useRouter }                                   from 'next/navigation'
+import { useAppStore } from '@/store/appStore'
+import { useRouter } from 'next/navigation'
 import ReactMarkdown from 'react-markdown';
-import type { ChatHistoryEntry }                       from '@/lib/types'
+import type { ChatHistoryEntry } from '@/lib/types'
 
 function Message({ entry }: { entry: ChatHistoryEntry }) {
   const isHuman = entry.role === 'human'
@@ -18,91 +18,97 @@ function Message({ entry }: { entry: ChatHistoryEntry }) {
     </div>
   )
 }
- 
+
+function parseJsonString(event: string) {
+  let token = ''
+  try {
+     token = JSON.parse(event.replace(/^data:/gm, '').trim())
+  } catch {
+    token = event.replace(/^data:/gm, '').trim()
+  }
+  return token;
+}
 export default function ChatPage() {
   const { sessionId, chatHistory, addChatTurn } = useAppStore()
-  const [input,     setInput]     = useState('');
+  const [input, setInput] = useState('');
   const [streaming, setStreaming] = useState('');
-  const [loading,   setLoading]   = useState(false)
-  const [error,     setError]     = useState<string | null>(null)
-  const bottomRef                 = useRef<HTMLDivElement>(null)
-  const router                    = useRouter()
- 
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const bottomRef = useRef<HTMLDivElement>(null)
+  const router = useRouter()
+
   // if (!sessionId) { router.replace('/'); return null }
- 
+
   // Auto-scroll on new content
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [chatHistory, streaming])
- 
+
   const send = async () => {
     const text = input.trim()
     if (!text || loading) return
- 
+
     setInput('')
     setLoading(true)
     setError(null)
     setStreaming('')
- 
+
     try {
       const res = await fetch('/api/chat', {
-        method:  'POST',
+        method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body:    JSON.stringify({
+        body: JSON.stringify({
           sessionId,
-          input:        text,
+          input: text,
           chat_history: chatHistory, //TODO:: can we store chat_history within this component as state, if not used in other components? 
         }),
       })
- 
+
       if (!res.ok) throw new Error(await res.text())
       //TODO:: How this streaming part is working?
-      const reader  = res.body!.getReader()
+      const reader = res.body!.getReader()
       const decoder = new TextDecoder()
-      let   buffer  = ''
-      let   full    = ''
- 
+      let buffer = ''
+      let full = ''
+
       while (true) {
         const { done, value } = await reader.read()
         if (done) break
- 
+
         // stream:true handles multi-byte characters split across chunks
         buffer += decoder.decode(value, { stream: true })
+        console.log("Buffer:: ", buffer);
         // Split on SSE double-newline delimiter
         const events = buffer.split('\n\n')
+        console.log("Events:: ", events);
         // Last item may be incomplete — keep in buffer for next iteration
         buffer = events.pop() ?? ''
-       
+
         for (const event of events) {
-          if (!event.trim()) continue
-          // Extract content after "data: " prefix
-          const token = event.replace(/^data:\s*/gm, '').trim()
+          let token = parseJsonString(event);
           if (!token) continue
-          full += token + ' '
-          setStreaming(prev => prev + ' ' + token)
+          full += token 
+          setStreaming(prev => prev  + token)
         }
-            }
-       
-            // Flush any remaining buffer content
-            if (buffer) {
-        const token = buffer.replace(/^data:\s*/gm, '').trim()
-        if (token) { 
-          full += token + ' '
-          setStreaming(prev => prev + ' ' + token) 
-        }
-            }
- 
+      }
+
+      // Flush any remaining buffer content
+      if (buffer) {
+        const token = parseJsonString(buffer);
+        if (token) { full += token ; setStreaming(prev => prev + token) }
+      }
+
       // Commit completed turn to Zustand history
       addChatTurn(text, full)
       setStreaming('')
- 
+
     } catch (err) {
       setError((err as Error).message)
     } finally {
       setLoading(false)
     }
   }
- 
+
   const onKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
     // Send on Enter — new line on Shift+Enter
     if (e.key === 'Enter' && !e.shiftKey) {
@@ -110,10 +116,10 @@ export default function ChatPage() {
       send()
     }
   }
- 
+
   return (
     <main className="flex flex-col h-screen bg-slate-50">
- 
+
       {/* Header */}
       <div className="bg-white border-b border-slate-200 px-6 py-4 flex items-center justify-between">
         <h1 className="font-bold text-slate-800">Chat with Your Resume</h1>
@@ -124,33 +130,33 @@ export default function ChatPage() {
           Clear history
         </button>
       </div>
- 
+
       {/* Messages */}
       <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
- 
+
         {chatHistory.length === 0 && !streaming && (
           <p className="text-center text-slate-400 text-sm mt-12">
             Ask anything about your resume — skills, experience, projects...
           </p>
         )}
- 
+
         {/* Committed history */}
         {chatHistory.map((entry, i) => (
           <Message key={i} entry={entry} />
         ))}
- 
+
         {/* Streaming response in progress */}
         {streaming && (
           <Message entry={{ role: 'ai', content: streaming + '▌' }} />
         )}
- 
+
         {error && (
           <p className="text-center text-red-400 text-sm">{error}</p>
         )}
- 
+
         <div ref={bottomRef} />
       </div>
- 
+
       {/* Input */}
       <div className="bg-white border-t border-slate-200 px-6 py-4">
         <div className="flex gap-3 items-center ">
@@ -176,7 +182,7 @@ export default function ChatPage() {
           </button>
         </div>
       </div>
- 
+
     </main>
   )
 }
