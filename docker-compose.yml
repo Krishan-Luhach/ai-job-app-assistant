@@ -2,7 +2,7 @@ services:
   chromadb:
     image: chromadb/chroma:1.5.3
     volumes:
-      - /chroma_data:/chroma
+      - chroma_data:/chroma
     ports:
       - "8000:8000"
     environment:

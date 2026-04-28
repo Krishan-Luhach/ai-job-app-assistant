@@ -5,7 +5,7 @@ import { CallbackManagerForRetrieverRun } from "@langchain/core/callbacks/manage
 import { embeddings } from "./embeddings";
 
 export const chromaClient = new ChromaClient({
-    ssl: process.env.CHROMA_SSL === "true",
+    ssl: process.env.CHROMA_SSL === "true" && process.env.NODE_ENV === "production",
     host: process.env.CHROMA_HOST ?? 'localhost',
     port: parseInt(process.env.CHROMA_PORT ?? "8000"),
 });
